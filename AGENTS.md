@@ -4,7 +4,7 @@ uv sync
 uv add <PACKAGE-NAME>
 uv run python <PYTHON-FILE>
 
-do not add `from __future__ import annotations`; keep annotations compatible without it
+do not add `from __future__ import annotations`
 
 keep imports at the top of Python modules; do not use inline imports
 
