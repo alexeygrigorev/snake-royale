@@ -40,9 +40,16 @@ Seeded users:
 - `bruno` / `password123`
 - `casey` / `password123`
 
-The backend uses SQLite through SQLAlchemy. By default, data is stored in
-`backend/snake_royale.db`; set `SNAKE_ROYALE_DATABASE_URL` to use a different
-SQLAlchemy database URL.
+The backend uses SQLAlchemy and defaults to SQLite at `backend/snake_royale.db`.
+Set `SNAKE_ROYALE_DATABASE_URL` to use Postgres or another SQLAlchemy database
+URL.
+
+For the Postgres container below:
+
+```bash
+export SNAKE_ROYALE_DATABASE_URL="postgresql://snakearena:snakearena@localhost:5432/snakearena"
+uv run python main.py
+```
 
 ## Frontend
 
@@ -92,8 +99,19 @@ docker run -it \
   snake-royale
 ```
 
-The image stores SQLite data at `/data/snake_royale.db` by default. Override
-`SNAKE_ROYALE_DATABASE_URL` if you need a different database URL.
+The image stores SQLite data at `/data/snake_royale.db` by default. To point it
+at the Postgres container above, run the app container on the host network or use
+the Docker network name for the database host, then set
+`SNAKE_ROYALE_DATABASE_URL`, for example:
+
+```bash
+docker run -it \
+  --rm \
+  --add-host=host.docker.internal:host-gateway \
+  -p 8000:8000 \
+  -e SNAKE_ROYALE_DATABASE_URL="postgresql://snakearena:snakearena@host.docker.internal:5432/snakearena" \
+  snake-royale
+```
 
 ## Notes
 

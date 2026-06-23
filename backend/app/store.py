@@ -5,7 +5,19 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, create_engine, delete, select
+from sqlalchemy import (
+    BigInteger,
+    JSON,
+    Boolean,
+    ForeignKey,
+    Integer,
+    String,
+    create_engine,
+    delete,
+    select,
+    text,
+)
+from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from app.models import ActiveGameSnapshot, GameMode, Point, ScoreEntry, User
@@ -52,7 +64,7 @@ class ScoreRow(Base):
     username: Mapped[str] = mapped_column(String, nullable=False)
     mode: Mapped[str] = mapped_column(String, nullable=False)
     score: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
 
 class ActiveGameRow(Base):
@@ -68,7 +80,7 @@ class ActiveGameRow(Base):
     width: Mapped[int] = mapped_column(Integer, nullable=False)
     height: Mapped[int] = mapped_column(Integer, nullable=False)
     alive: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    updated_at: Mapped[int] = mapped_column(Integer, nullable=False)
+    updated_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
 
 @dataclass(frozen=True)
@@ -83,20 +95,32 @@ class StoredUser:
 
 class DatabaseStore:
     def __init__(self, database_url: str | None = None) -> None:
-        url = database_url or os.environ.get(
+        raw_url = database_url or os.environ.get(
             "SNAKE_ROYALE_DATABASE_URL",
             f"sqlite:///{DEFAULT_DATABASE_PATH}",
         )
+        url = normalize_database_url(raw_url)
         self.engine = create_engine(
             url,
-            connect_args={"check_same_thread": False} if url.startswith("sqlite") else {},
+            connect_args=connect_args_for_url(url),
         )
         self.session_factory = sessionmaker(self.engine, expire_on_commit=False)
         Base.metadata.create_all(self.engine)
+        self.upgrade_schema()
         self.seed_if_empty()
 
     def _session(self) -> Session:
         return self.session_factory()
+
+    def upgrade_schema(self) -> None:
+        if self.engine.dialect.name != "postgresql":
+            return
+
+        with self.engine.begin() as connection:
+            connection.execute(text("ALTER TABLE scores ALTER COLUMN created_at TYPE BIGINT"))
+            connection.execute(
+                text("ALTER TABLE active_games ALTER COLUMN updated_at TYPE BIGINT")
+            )
 
     def find_user_by_username(self, username: str) -> StoredUser | None:
         normalized = normalize_username(username)
@@ -209,6 +233,19 @@ class DatabaseStore:
 
 def normalize_username(username: str) -> str:
     return username.strip().casefold()
+
+
+def normalize_database_url(database_url: str) -> URL:
+    url = make_url(database_url)
+    if url.drivername in {"postgres", "postgresql"}:
+        return url.set(drivername="postgresql+psycopg")
+    return url
+
+
+def connect_args_for_url(url: URL) -> dict[str, bool]:
+    if url.drivername.startswith("sqlite"):
+        return {"check_same_thread": False}
+    return {}
 
 
 def stored_user_from_row(row: UserRow) -> StoredUser:
