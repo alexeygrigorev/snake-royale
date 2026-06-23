@@ -20,12 +20,12 @@ class AuthContext:
 
 def create_session(user_id: str) -> str:
     token = secrets.token_urlsafe(32)
-    store.sessions[token] = user_id
+    store.create_session(token, user_id)
     return token
 
 
 def revoke_session(token: str) -> None:
-    store.sessions.pop(token, None)
+    store.revoke_session(token)
 
 
 def authenticate_user(username: str, password: str) -> User | None:
@@ -51,12 +51,12 @@ async def optional_auth_context(
     token = _resolve_token(credentials, session_cookie)
     if token is None:
         return None
-    user_id = store.sessions.get(token)
+    user_id = store.get_session_user_id(token)
     if user_id is None:
         return None
-    user = store.users.get(user_id)
+    user = store.get_user(user_id)
     if user is None:
-        store.sessions.pop(token, None)
+        store.revoke_session(token)
         return None
     return AuthContext(user=user.to_public(), token=token)
 

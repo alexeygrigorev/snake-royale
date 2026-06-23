@@ -20,7 +20,7 @@ async def submit_score(
         score=payload.score,
         createdAt=now_ms(),
     )
-    store.scores.append(entry)
+    store.add_score(entry)
     return entry
 
 
@@ -29,7 +29,4 @@ async def get_leaderboard(
     mode: GameMode,
     limit: int = Query(default=10, ge=1),
 ) -> list[ScoreEntry]:
-    return sorted(
-        (score for score in store.scores if score.mode == mode),
-        key=lambda score: (-score.score, score.createdAt),
-    )[:limit]
+    return store.list_scores(mode, limit)

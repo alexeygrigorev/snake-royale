@@ -40,8 +40,9 @@ Seeded users:
 - `bruno` / `password123`
 - `casey` / `password123`
 
-The backend uses an in-memory store, so new users, sessions, scores, and active
-games reset when the server restarts.
+The backend uses SQLite through SQLAlchemy. By default, data is stored in
+`backend/snake_royale.db`; set `SNAKE_ROYALE_DATABASE_URL` to use a different
+SQLAlchemy database URL.
 
 ## Frontend
 

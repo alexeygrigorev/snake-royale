@@ -9,7 +9,6 @@ router = APIRouter(prefix="/active-games", tags=["Active Games"])
 
 @router.get("", response_model=list[ActiveGameSummary])
 async def list_active_games() -> list[ActiveGameSummary]:
-    store.prune_active_games()
     return [
         ActiveGameSummary(
             gameId=game.gameId,
@@ -18,11 +17,7 @@ async def list_active_games() -> list[ActiveGameSummary]:
             score=game.score,
             updatedAt=game.updatedAt,
         )
-        for game in sorted(
-            store.active_games.values(),
-            key=lambda snapshot: snapshot.updatedAt,
-            reverse=True,
-        )
+        for game in store.list_active_games()
     ]
 
 
@@ -32,14 +27,13 @@ async def publish_game_state(
     user: User = Depends(require_user),
 ) -> Response:
     stored = snapshot.model_copy(update={"userId": user.id, "username": user.username})
-    store.active_games[stored.gameId] = stored
+    store.upsert_active_game(stored)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/{game_id}", response_model=ActiveGameSnapshot)
 async def watch_game(game_id: str) -> ActiveGameSnapshot:
-    store.prune_active_games()
-    game = store.active_games.get(game_id)
+    game = store.get_active_game(game_id)
     if game is None:
         raise HTTPException(status_code=404, detail="Active game not found")
     return game
@@ -50,5 +44,5 @@ async def end_game(
     game_id: str,
     _: User = Depends(require_user),
 ) -> Response:
-    store.active_games.pop(game_id, None)
+    store.delete_active_game(game_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
