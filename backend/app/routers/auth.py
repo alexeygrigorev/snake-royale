@@ -1,3 +1,5 @@
+import os
+
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.auth import (
@@ -15,13 +17,22 @@ from app.store import store
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
+def _session_cookie_secure() -> bool:
+    return os.getenv("SNAKE_ROYALE_SECURE_COOKIES", "").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 def _set_session_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         SESSION_COOKIE,
         token,
         httponly=True,
         samesite="lax",
-        secure=False,
+        secure=_session_cookie_secure(),
     )
 
 
@@ -61,7 +72,11 @@ async def logout(
     context=Depends(require_auth_context),
 ) -> Response:
     revoke_session(context.token)
-    response.delete_cookie(SESSION_COOKIE)
+    response.delete_cookie(
+        SESSION_COOKIE,
+        secure=_session_cookie_secure(),
+        samesite="lax",
+    )
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
 

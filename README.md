@@ -107,6 +107,9 @@ at the Postgres container above, run the app container on the host network or us
 the Docker network name for the database host, then set
 `SNAKE_ROYALE_DATABASE_URL`.
 
+For a free-friendly hosted deployment, see
+[Deploy to Koyeb + Neon](docs/deploy-koyeb-neon.md).
+
 Run postgres:
 
 ```bash

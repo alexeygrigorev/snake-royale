@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.store import store
@@ -13,6 +14,18 @@ def test_signup_returns_user_token_and_cookie(client: TestClient):
     assert body["tokenType"] == "bearer"
     assert "snake.session" in response.cookies
     assert store.find_user_by_username("dana").password_hash.startswith("pbkdf2_sha256$")
+
+
+def test_signup_uses_secure_cookie_when_enabled(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("SNAKE_ROYALE_SECURE_COOKIES", "true")
+
+    response = client.post("/auth/signup", json={"username": "evan", "password": "secret"})
+
+    assert response.status_code == 200
+    assert "secure" in response.headers["set-cookie"].lower()
 
 
 def test_login_rejects_bad_password(client: TestClient):
