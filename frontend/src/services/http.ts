@@ -8,7 +8,7 @@ import type {
   User,
 } from "./types";
 
-const DEFAULT_API_BASE_URL = "http://localhost:8000";
+const DEFAULT_API_BASE_URL = import.meta.env.DEV ? "/api" : "http://localhost:8000";
 const WATCH_POLL_MS = 500;
 
 interface ErrorResponse {
