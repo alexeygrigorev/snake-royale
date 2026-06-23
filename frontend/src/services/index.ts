@@ -1,11 +1,10 @@
-import { createMockServices } from "./mock";
+import { createHttpServices } from "./http";
 import type { Services } from "./types";
 
 /**
- * Central entrypoint for backend calls. Swap the implementation here
- * (e.g. real Supabase/HTTP client) without touching call sites.
+ * Central entrypoint for backend calls.
  */
-export const services: Services = createMockServices();
+export const services: Services = createHttpServices();
 
 export type { Services } from "./types";
 export * from "./types";
