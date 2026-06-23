@@ -1,10 +1,22 @@
+import os
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.routers import active_games, auth, scores
 
+
+STATIC_DIR = Path(
+    os.getenv("SNAKE_ROYALE_STATIC_DIR", Path(__file__).resolve().parents[1] / "static")
+)
+INDEX_HTML = STATIC_DIR / "index.html"
+ASSETS_DIR = STATIC_DIR / "assets"
+API_PREFIXES = ("/active-games", "/auth", "/health", "/leaderboard", "/scores")
 
 app = FastAPI(
     title="Snake Royale Backend API",
@@ -48,3 +60,14 @@ async def health() -> dict[str, str]:
 app.include_router(auth.router)
 app.include_router(scores.router)
 app.include_router(active_games.router)
+
+if ASSETS_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
+
+
+@app.get("/{path:path}", include_in_schema=False)
+async def serve_frontend(path: str) -> FileResponse:
+    request_path = f"/{path}"
+    if request_path.startswith(API_PREFIXES) or not INDEX_HTML.exists():
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(INDEX_HTML)
