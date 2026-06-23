@@ -99,10 +99,30 @@ docker run -it \
   snake-royale
 ```
 
-The image stores SQLite data at `/data/snake_royale.db` by default. To point it
+The image stores SQLite data at `/data/snake_royale.db` by default.
+
+
+To point it
 at the Postgres container above, run the app container on the host network or use
 the Docker network name for the database host, then set
-`SNAKE_ROYALE_DATABASE_URL`, for example:
+`SNAKE_ROYALE_DATABASE_URL`.
+
+Run postgres:
+
+```bash
+docker run -it \
+  --rm \
+  --name snake-db \
+  -e POSTGRES_USER=snakearena \
+  -e POSTGRES_PASSWORD=snakearena \
+  -e POSTGRES_DB=snakearena \
+  -p 5432:5432 \
+  -v snake_pgdata:/var/lib/postgresql/data \
+  postgres:16-alpine
+```
+
+Run the app:
+
 
 ```bash
 docker run -it \
@@ -112,6 +132,10 @@ docker run -it \
   -e SNAKE_ROYALE_DATABASE_URL="postgresql://snakearena:snakearena@host.docker.internal:5432/snakearena" \
   snake-royale
 ```
+
+
+
+
 
 ## Notes
 
