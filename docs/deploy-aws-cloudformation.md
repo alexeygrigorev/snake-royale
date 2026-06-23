@@ -9,8 +9,7 @@ This template creates:
 
 ## Create the stack
 
-Deploy from the repository root. Replace `AppRepositoryUrl` with the Git URL that
-the EC2 instance can clone:
+Deploy from the repository root:
 
 ```bash
 aws cloudformation deploy \
@@ -19,7 +18,7 @@ aws cloudformation deploy \
   --template-file infra/cloudformation.yaml \
   --capabilities CAPABILITY_IAM \
   --parameter-overrides \
-    AppRepositoryUrl=https://github.com/YOUR_ORG/snake-royale.git \
+    AppRepositoryUrl=https://github.com/alexeygrigorev/snake-royale \
     AppSourceBranch=main \
     AuroraEngineVersion=16.6
 ```
@@ -48,7 +47,7 @@ aws cloudformation deploy \
   --template-file infra/cloudformation.yaml \
   --capabilities CAPABILITY_IAM \
   --parameter-overrides \
-    AppRepositoryUrl=https://github.com/YOUR_ORG/snake-royale.git \
+    AppRepositoryUrl=https://github.com/alexeygrigorev/snake-royale \
     AppSourceBranch=main \
     AuroraEngineVersion=16.6
 ```
