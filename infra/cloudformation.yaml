@@ -353,6 +353,11 @@ Resources:
                   - ssm:ListCommandInvocations
                   - ssm:SendCommand
                 Resource: "*"
+              - Sid: ReadPublicAmiParameter
+                Effect: Allow
+                Action:
+                  - ssm:GetParameters
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}::parameter/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
 
   AppInstance:
     Type: AWS::EC2::Instance
