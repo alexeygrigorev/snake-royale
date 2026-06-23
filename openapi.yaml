@@ -1,0 +1,423 @@
+openapi: 3.1.0
+info:
+  title: Snake Royale Backend API
+  version: 0.1.0
+  description: >
+    HTTP API contract expected by the frontend service layer in
+    frontend/src/services. Authenticated endpoints use a session cookie set by
+    login or signup.
+servers:
+  - url: /
+tags:
+  - name: Auth
+  - name: Scores
+  - name: Active Games
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: snake.session
+      description: Session cookie returned by successful login or signup.
+  schemas:
+    GameMode:
+      type: string
+      enum:
+        - walls
+        - wrap
+    User:
+      type: object
+      required:
+        - id
+        - username
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+    AuthCredentials:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+          format: password
+    AuthResult:
+      type: object
+      required:
+        - user
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+    ScoreEntry:
+      type: object
+      required:
+        - id
+        - userId
+        - username
+        - mode
+        - score
+        - createdAt
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        username:
+          type: string
+        mode:
+          $ref: "#/components/schemas/GameMode"
+        score:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: integer
+          format: int64
+          description: Unix timestamp in milliseconds.
+    SubmitScoreRequest:
+      type: object
+      required:
+        - mode
+        - score
+      properties:
+        mode:
+          $ref: "#/components/schemas/GameMode"
+        score:
+          type: integer
+          minimum: 0
+    Point:
+      type: object
+      required:
+        - x
+        - y
+      properties:
+        x:
+          type: integer
+        y:
+          type: integer
+    ActiveGameSnapshot:
+      type: object
+      required:
+        - gameId
+        - userId
+        - username
+        - mode
+        - score
+        - snake
+        - food
+        - width
+        - height
+        - alive
+        - updatedAt
+      properties:
+        gameId:
+          type: string
+        userId:
+          type: string
+        username:
+          type: string
+        mode:
+          $ref: "#/components/schemas/GameMode"
+        score:
+          type: integer
+          minimum: 0
+        snake:
+          type: array
+          items:
+            $ref: "#/components/schemas/Point"
+        food:
+          $ref: "#/components/schemas/Point"
+        width:
+          type: integer
+          minimum: 1
+        height:
+          type: integer
+          minimum: 1
+        alive:
+          type: boolean
+        updatedAt:
+          type: integer
+          format: int64
+          description: Unix timestamp in milliseconds.
+    ActiveGameSummary:
+      type: object
+      required:
+        - gameId
+        - username
+        - mode
+        - score
+        - updatedAt
+      properties:
+        gameId:
+          type: string
+        username:
+          type: string
+        mode:
+          $ref: "#/components/schemas/GameMode"
+        score:
+          type: integer
+          minimum: 0
+        updatedAt:
+          type: integer
+          format: int64
+          description: Unix timestamp in milliseconds.
+    ErrorResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+  responses:
+    Unauthorized:
+      description: Authentication is required or the session is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ValidationError:
+      description: The request body or query parameters are invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+paths:
+  /auth/signup:
+    post:
+      tags:
+        - Auth
+      summary: Create an account and sign in.
+      operationId: signup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthCredentials"
+      responses:
+        "200":
+          description: Account created and session established.
+          headers:
+            Set-Cookie:
+              description: Session cookie for subsequent authenticated requests.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          description: Username is already taken.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Sign in with username and password.
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthCredentials"
+      responses:
+        "200":
+          description: Session established.
+          headers:
+            Set-Cookie:
+              description: Session cookie for subsequent authenticated requests.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          description: Invalid username or password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: End the current session.
+      operationId: logout
+      security:
+        - sessionCookie: []
+      responses:
+        "204":
+          description: Session ended.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Get the current signed-in user.
+      operationId: currentUser
+      security:
+        - sessionCookie: []
+        - {}
+      responses:
+        "200":
+          description: Current authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "204":
+          description: No active session; frontend treats this as null.
+  /scores:
+    post:
+      tags:
+        - Scores
+      summary: Submit the signed-in user's score.
+      operationId: submitScore
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitScoreRequest"
+      responses:
+        "201":
+          description: Score recorded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoreEntry"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /leaderboard:
+    get:
+      tags:
+        - Scores
+      summary: Get top scores for one game mode.
+      operationId: getLeaderboard
+      parameters:
+        - name: mode
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/GameMode"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
+      responses:
+        "200":
+          description: Leaderboard entries sorted by score descending.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScoreEntry"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+  /active-games:
+    get:
+      tags:
+        - Active Games
+      summary: List currently spectatable games.
+      operationId: listActiveGames
+      responses:
+        "200":
+          description: Active game summaries sorted by most recently updated.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActiveGameSummary"
+    put:
+      tags:
+        - Active Games
+      summary: Publish or replace the signed-in user's active game state.
+      operationId: publishGameState
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActiveGameSnapshot"
+      responses:
+        "204":
+          description: Game state stored for spectators.
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /active-games/{gameId}:
+    get:
+      tags:
+        - Active Games
+      summary: Get the latest snapshot for one active game.
+      description: >
+        The frontend can call this repeatedly to implement watchGame. A missing
+        or expired game maps to a null snapshot in the frontend service.
+      operationId: watchGame
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Latest active game snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActiveGameSnapshot"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags:
+        - Active Games
+      summary: Remove an active game from the spectating list.
+      operationId: endGame
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Active game removed. Also returned if the game is already absent.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
