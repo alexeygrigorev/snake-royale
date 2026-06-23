@@ -23,11 +23,13 @@ aws cloudformation deploy \
   --stack-name snake-royale \
   --region us-east-1 \
   --template-file infra/cloudformation.yaml \
-  --capabilities CAPABILITY_IAM \
+  --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides \
     AppRepositoryUrl=https://github.com/alexeygrigorev/snake-royale \
     AppSourceBranch=main \
-    AuroraEngineVersion=16.6
+    AuroraEngineVersion=16.6 \
+    GitHubRepository=alexeygrigorev/snake-royale \
+    GitHubOidcProviderArn=arn:aws:iam::<account-id>:oidc-provider/token.actions.githubusercontent.com
 ```
 
 Then read the public app URL:
@@ -39,6 +41,11 @@ aws cloudformation describe-stacks \
   --query "Stacks[0].Outputs[?OutputKey=='AppUrl'].OutputValue" \
   --output text
 ```
+
+The template also creates a GitHub Actions OIDC deploy role. Store the
+`GitHubDeployRoleArn` stack output as the repository Actions secret named
+`AWS_ROLE_TO_ASSUME`. GitHub Actions will assume that role through OIDC; do not
+create an IAM user or long-lived AWS access keys for deployment.
 
 The `AppUrl` output is the HTTPS CloudFront URL. The `AppHttpUrl` output is the
 direct EC2 URL and is useful only for debugging.
@@ -66,11 +73,13 @@ aws cloudformation deploy \
   --stack-name snake-royale \
   --region us-east-1 \
   --template-file infra/cloudformation.yaml \
-  --capabilities CAPABILITY_IAM \
+  --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides \
     AppRepositoryUrl=https://github.com/alexeygrigorev/snake-royale \
     AppSourceBranch=main \
-    AuroraEngineVersion=16.6
+    AuroraEngineVersion=16.6 \
+    GitHubRepository=alexeygrigorev/snake-royale \
+    GitHubOidcProviderArn=arn:aws:iam::<account-id>:oidc-provider/token.actions.githubusercontent.com
 ```
 
 The generated database secret has no rotation schedule, so re-running these

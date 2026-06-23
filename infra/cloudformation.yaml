@@ -9,6 +9,13 @@ Parameters:
     Type: String
     Default: main
     Description: Git branch to deploy.
+  GitHubRepository:
+    Type: String
+    Default: alexeygrigorev/snake-royale
+    Description: GitHub owner/repository allowed to assume the deploy role.
+  GitHubOidcProviderArn:
+    Type: String
+    Description: ARN of the GitHub Actions OIDC provider in this AWS account.
   InstanceType:
     Type: String
     Default: t3.medium
@@ -252,6 +259,101 @@ Resources:
       Roles:
         - !Ref AppInstanceRole
 
+  GitHubDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-github-deploy
+      Description: Role assumed by GitHub Actions through OIDC to deploy Snake Royale.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                "token.actions.githubusercontent.com:aud": sts.amazonaws.com
+                "token.actions.githubusercontent.com:sub": !Sub repo:${GitHubRepository}:ref:refs/heads/${AppSourceBranch}
+      Policies:
+        - PolicyName: SnakeRoyaleDeployPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ManageSnakeRoyaleStack
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:CreateStack
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:DescribeStacks
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:GetTemplateSummary
+                  - cloudformation:UpdateStack
+                Resource:
+                  - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*
+                  - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:changeSet/awscli-cloudformation-package-deploy-*/*
+              - Sid: ReadCloudFormationStacks
+                Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                Resource: "*"
+              - Sid: ManageStackResources
+                Effect: Allow
+                Action:
+                  - cloudfront:*
+                  - ec2:*
+                  - rds:*
+                  - secretsmanager:*
+                Resource: "*"
+              - Sid: ManageStackIamResources
+                Effect: Allow
+                Action:
+                  - iam:AddRoleToInstanceProfile
+                  - iam:AttachRolePolicy
+                  - iam:CreateInstanceProfile
+                  - iam:CreateRole
+                  - iam:DeleteInstanceProfile
+                  - iam:DeleteRole
+                  - iam:DeleteRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:GetInstanceProfile
+                  - iam:GetRole
+                  - iam:GetRolePolicy
+                  - iam:ListAttachedRolePolicies
+                  - iam:ListInstanceProfiles
+                  - iam:ListInstanceProfilesForRole
+                  - iam:ListRolePolicies
+                  - iam:PassRole
+                  - iam:PutRolePolicy
+                  - iam:RemoveRoleFromInstanceProfile
+                  - iam:TagInstanceProfile
+                  - iam:TagRole
+                  - iam:UntagInstanceProfile
+                  - iam:UntagRole
+                  - iam:UpdateAssumeRolePolicy
+                Resource:
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${AWS::StackName}-*
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/${AWS::StackName}-*
+              - Sid: CreateRequiredServiceLinkedRoles
+                Effect: Allow
+                Action:
+                  - iam:CreateServiceLinkedRole
+                Resource: "*"
+                Condition:
+                  StringLike:
+                    iam:AWSServiceName:
+                      - rds.amazonaws.com
+              - Sid: UseSsmForRedeploy
+                Effect: Allow
+                Action:
+                  - ssm:DescribeInstanceInformation
+                  - ssm:GetCommandInvocation
+                  - ssm:ListCommandInvocations
+                  - ssm:SendCommand
+                Resource: "*"
+
   AppInstance:
     Type: AWS::EC2::Instance
     DependsOn:
@@ -402,3 +504,6 @@ Outputs:
   DatabaseSecretArn:
     Description: Secrets Manager secret containing the database username and password.
     Value: !Ref DatabaseSecret
+  GitHubDeployRoleArn:
+    Description: IAM role ARN to store in the GitHub Actions AWS_ROLE_TO_ASSUME secret.
+    Value: !GetAtt GitHubDeployRole.Arn
