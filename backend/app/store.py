@@ -1,10 +1,9 @@
-from __future__ import annotations
-
 import time
 import uuid
 from dataclasses import dataclass, field
 
 from app.models import ActiveGameSnapshot, GameMode, Point, ScoreEntry, User
+from app.security import hash_password
 
 
 ACTIVE_GAME_TTL_MS = 15_000
@@ -69,8 +68,6 @@ store = InMemoryStore()
 
 
 def seed_store(target: InMemoryStore) -> None:
-    from app.security import hash_password
-
     users = [
         target.add_user("alice", hash_password("password123")),
         target.add_user("bruno", hash_password("password123")),
