@@ -142,3 +142,166 @@
     color: var(--color-foreground);
   }
 }
+
+@layer components {
+  .nokia-phone {
+    width: min(100%, 29rem);
+    border: 2px solid oklch(0.28 0.02 250);
+    border-radius: 2.1rem 2.1rem 2.6rem 2.6rem;
+    background:
+      radial-gradient(circle at 50% 8%, oklch(0.78 0.02 240), transparent 17%),
+      linear-gradient(
+        145deg,
+        oklch(0.63 0.025 244),
+        oklch(0.36 0.025 252) 68%,
+        oklch(0.24 0.02 255)
+      );
+    box-shadow:
+      inset 0 1.1rem 2.2rem oklch(0.92 0.01 240 / 35%),
+      inset 0 -1.2rem 2rem oklch(0.18 0.02 255 / 58%),
+      0 1.4rem 3rem oklch(0.16 0.03 250 / 28%);
+    padding: 1.05rem 1rem 1.25rem;
+  }
+
+  .nokia-speaker {
+    width: 5.8rem;
+    height: 0.42rem;
+    margin: 0 auto 0.6rem;
+    border-radius: 999px;
+    background: linear-gradient(180deg, oklch(0.16 0.02 250), oklch(0.38 0.02 250));
+    box-shadow: inset 0 0.1rem 0.12rem oklch(1 0 0 / 18%);
+  }
+
+  .nokia-brand {
+    margin-bottom: 0.7rem;
+    color: oklch(0.92 0.01 240);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 0.84rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-align: center;
+  }
+
+  .nokia-screen {
+    border: 0.55rem solid oklch(0.18 0.015 250);
+    border-radius: 0.95rem 0.95rem 0.8rem 0.8rem;
+    background: #96a46e;
+    box-shadow:
+      inset 0 0 0 0.16rem oklch(0.38 0.025 132),
+      inset 0 0.45rem 1.3rem oklch(0.12 0.03 130 / 28%);
+    overflow: hidden;
+  }
+
+  .nokia-screen-status {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 2px solid #26371a;
+    background: #96a46e;
+    color: #13210f;
+    font-family: "Courier New", monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0.35rem 0.45rem 0.28rem;
+    text-transform: uppercase;
+  }
+
+  .nokia-board {
+    display: block;
+    width: 100%;
+    background: #96a46e;
+    image-rendering: pixelated;
+  }
+
+  .nokia-keypad {
+    padding-top: 1rem;
+  }
+
+  .nokia-softkeys {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.1rem;
+    padding: 0 3.6rem;
+  }
+
+  .nokia-softkeys span,
+  .nokia-dpad span,
+  .nokia-number-pad span {
+    background: linear-gradient(180deg, oklch(0.83 0.012 238), oklch(0.52 0.018 246));
+    border: 1px solid oklch(0.24 0.02 250);
+    box-shadow:
+      inset 0 0.12rem 0.22rem oklch(1 0 0 / 42%),
+      0 0.18rem 0.16rem oklch(0.12 0.02 250 / 38%);
+  }
+
+  .nokia-softkeys span {
+    height: 1.05rem;
+    border-radius: 999px 999px 0.7rem 0.7rem;
+  }
+
+  .nokia-dpad {
+    display: flex;
+    justify-content: center;
+    margin: 0.45rem 0 0.65rem;
+  }
+
+  .nokia-dpad span {
+    width: 4.9rem;
+    height: 2.7rem;
+    border-radius: 999px;
+    position: relative;
+  }
+
+  .nokia-dpad span::after {
+    position: absolute;
+    inset: 0.58rem 1.45rem;
+    border-radius: 999px;
+    background: oklch(0.33 0.018 248);
+    content: "";
+  }
+
+  .nokia-number-pad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.45rem 0.55rem;
+  }
+
+  .nokia-number-pad span {
+    min-height: 1.95rem;
+    border-radius: 999px;
+    color: oklch(0.13 0.025 250);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 520px) {
+    .nokia-phone {
+      border-radius: 1.65rem 1.65rem 2rem 2rem;
+      padding: 0.75rem 0.68rem 0.9rem;
+    }
+
+    .nokia-screen {
+      border-width: 0.42rem;
+    }
+
+    .nokia-softkeys {
+      gap: 0.75rem;
+      padding: 0 2.4rem;
+    }
+
+    .nokia-number-pad {
+      gap: 0.34rem 0.42rem;
+    }
+
+    .nokia-number-pad span {
+      min-height: 1.7rem;
+      font-size: 0.58rem;
+    }
+  }
+}

@@ -3,14 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { services } from "@/services";
 import type { GameMode } from "@/services/types";
-import { SnakeBoard } from "@/components/SnakeBoard";
-import {
-  createGame,
-  tick,
-  turn,
-  type Direction,
-  type GameState,
-} from "@/lib/snake/engine";
+import { SnakeBoard, type BoardVisualMode } from "@/components/SnakeBoard";
+import { createGame, tick, turn, type Direction, type GameState } from "@/lib/snake/engine";
 
 export const Route = createFileRoute("/play")({
   head: () => ({
@@ -34,6 +28,8 @@ const KEYS: Record<string, Direction> = {
   d: "right",
 };
 
+const VISUAL_MODE_STORAGE_KEY = "snake-visual-mode";
+
 function newGameId(): string {
   const randomUUID = globalThis.crypto?.randomUUID;
   if (typeof randomUUID === "function") {
@@ -46,6 +42,10 @@ function newGameId(): string {
 function PlayPage() {
   const { user } = useAuth();
   const [mode, setMode] = useState<GameMode>("walls");
+  const [visualMode, setVisualMode] = useState<BoardVisualMode>(() => {
+    if (typeof window === "undefined") return "current";
+    return window.localStorage.getItem(VISUAL_MODE_STORAGE_KEY) === "nokia" ? "nokia" : "current";
+  });
   const [state, setState] = useState<GameState>(() => createGame("walls"));
   const [running, setRunning] = useState(false);
   const gameIdRef = useRef<string>(newGameId());
@@ -57,6 +57,10 @@ function PlayPage() {
     submittedRef.current = false;
     setRunning(false);
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(VISUAL_MODE_STORAGE_KEY, visualMode);
+  }, [visualMode]);
 
   // Game loop
   useEffect(() => {
@@ -131,14 +135,18 @@ function PlayPage() {
             Arrow keys or WASD to move. Space to pause / resume.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
           <ModePicker mode={mode} onChange={onModeChange} />
+          <VisualModePicker mode={visualMode} onChange={setVisualMode} />
         </div>
       </div>
 
       {!user && (
         <div className="mb-4 rounded-md border border-border bg-card p-3 text-sm">
-          You're playing as a guest — <Link to="/auth" className="underline">sign in</Link>{" "}
+          You're playing as a guest —{" "}
+          <Link to="/auth" className="underline">
+            sign in
+          </Link>{" "}
           to save scores and be spectated.
         </div>
       )}
@@ -148,7 +156,7 @@ function PlayPage() {
           <span className="font-medium">Score: {state.score}</span>
           <span className="text-muted-foreground">{statusBadge}</span>
         </div>
-        <SnakeBoard state={state} />
+        <SnakeBoard state={state} visualMode={visualMode} />
         <div className="flex gap-2">
           {state.alive ? (
             <button
@@ -177,15 +185,9 @@ function PlayPage() {
   );
 }
 
-function ModePicker({
-  mode,
-  onChange,
-}: {
-  mode: GameMode;
-  onChange: (m: GameMode) => void;
-}) {
+function ModePicker({ mode, onChange }: { mode: GameMode; onChange: (m: GameMode) => void }) {
   return (
-    <div className="flex rounded-md border border-border p-1">
+    <div className="flex rounded-md border border-border p-1" aria-label="Game mode">
       <button
         className={`rounded-sm px-3 py-1.5 ${mode === "walls" ? "bg-primary text-primary-foreground" : ""}`}
         onClick={() => onChange("walls")}
@@ -197,6 +199,31 @@ function ModePicker({
         onClick={() => onChange("wrap")}
       >
         Pass-through
+      </button>
+    </div>
+  );
+}
+
+function VisualModePicker({
+  mode,
+  onChange,
+}: {
+  mode: BoardVisualMode;
+  onChange: (m: BoardVisualMode) => void;
+}) {
+  return (
+    <div className="flex rounded-md border border-border p-1" aria-label="Visual mode">
+      <button
+        className={`rounded-sm px-3 py-1.5 ${mode === "current" ? "bg-primary text-primary-foreground" : ""}`}
+        onClick={() => onChange("current")}
+      >
+        Current
+      </button>
+      <button
+        className={`rounded-sm px-3 py-1.5 ${mode === "nokia" ? "bg-primary text-primary-foreground" : ""}`}
+        onClick={() => onChange("nokia")}
+      >
+        Old Nokia
       </button>
     </div>
   );
