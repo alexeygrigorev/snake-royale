@@ -87,6 +87,7 @@ Run it with a persistent SQLite database volume:
 docker run -it \
   --rm \
   -p 8000:8000 \
+  -e SNAKE_ROYALE_DATABASE_URL="sqlite:////data/snake_royale.db" \
   -v snake-royale-data:/data \
   snake-royale
 ```
