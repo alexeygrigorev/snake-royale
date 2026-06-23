@@ -8,7 +8,7 @@ router = APIRouter(tags=["Scores"])
 
 
 @router.post("/scores", response_model=ScoreEntry, status_code=status.HTTP_201_CREATED)
-async def submit_score(
+def submit_score(
     payload: SubmitScoreRequest,
     user: User = Depends(require_user),
 ) -> ScoreEntry:
@@ -25,7 +25,7 @@ async def submit_score(
 
 
 @router.get("/leaderboard", response_model=list[ScoreEntry])
-async def get_leaderboard(
+def get_leaderboard(
     mode: GameMode,
     limit: int = Query(default=10, ge=1),
 ) -> list[ScoreEntry]:

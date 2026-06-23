@@ -46,7 +46,7 @@ def _validate_credentials(credentials: AuthCredentials) -> tuple[str, str]:
 
 
 @router.post("/signup", response_model=AuthResult)
-async def signup(credentials: AuthCredentials, response: Response) -> AuthResult:
+def signup(credentials: AuthCredentials, response: Response) -> AuthResult:
     username, password = _validate_credentials(credentials)
     if store.find_user_by_username(username) is not None:
         raise HTTPException(status_code=409, detail="Username is already taken")
@@ -57,7 +57,7 @@ async def signup(credentials: AuthCredentials, response: Response) -> AuthResult
 
 
 @router.post("/login", response_model=AuthResult)
-async def login(credentials: AuthCredentials, response: Response) -> AuthResult:
+def login(credentials: AuthCredentials, response: Response) -> AuthResult:
     user = authenticate_user(credentials.username, credentials.password)
     if user is None:
         raise HTTPException(status_code=401, detail="Invalid username or password")
@@ -67,7 +67,7 @@ async def login(credentials: AuthCredentials, response: Response) -> AuthResult:
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(
+def logout(
     response: Response,
     context=Depends(require_auth_context),
 ) -> Response:
@@ -82,7 +82,7 @@ async def logout(
 
 
 @router.get("/me", response_model=User, responses={204: {"description": "No active session"}})
-async def current_user(context=Depends(optional_auth_context)) -> User | Response:
+def current_user(context=Depends(optional_auth_context)) -> User | Response:
     if context is None:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     return context.user

@@ -8,7 +8,7 @@ router = APIRouter(prefix="/active-games", tags=["Active Games"])
 
 
 @router.get("", response_model=list[ActiveGameSummary])
-async def list_active_games() -> list[ActiveGameSummary]:
+def list_active_games() -> list[ActiveGameSummary]:
     return [
         ActiveGameSummary(
             gameId=game.gameId,
@@ -22,7 +22,7 @@ async def list_active_games() -> list[ActiveGameSummary]:
 
 
 @router.put("", status_code=status.HTTP_204_NO_CONTENT)
-async def publish_game_state(
+def publish_game_state(
     snapshot: ActiveGameSnapshot,
     user: User = Depends(require_user),
 ) -> Response:
@@ -32,7 +32,7 @@ async def publish_game_state(
 
 
 @router.get("/{game_id}", response_model=ActiveGameSnapshot)
-async def watch_game(game_id: str) -> ActiveGameSnapshot:
+def watch_game(game_id: str) -> ActiveGameSnapshot:
     game = store.get_active_game(game_id)
     if game is None:
         raise HTTPException(status_code=404, detail="Active game not found")
@@ -40,7 +40,7 @@ async def watch_game(game_id: str) -> ActiveGameSnapshot:
 
 
 @router.delete("/{game_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def end_game(
+def end_game(
     game_id: str,
     _: User = Depends(require_user),
 ) -> Response:
