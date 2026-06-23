@@ -73,6 +73,27 @@ Build the frontend:
 npm run build
 ```
 
+## Docker
+
+Build the production image:
+
+```bash
+docker build -t snake-royale .
+```
+
+Run it with a persistent SQLite database volume:
+
+```bash
+docker run -it \
+  --rm \
+  -p 8000:8000 \
+  -v snake-royale-data:/data \
+  snake-royale
+```
+
+The image stores SQLite data at `/data/snake_royale.db` by default. Override
+`SNAKE_ROYALE_DATABASE_URL` if you need a different database URL.
+
 ## Notes
 
 - The OpenAPI contract is in `openapi.yaml`.
