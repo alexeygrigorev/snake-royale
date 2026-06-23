@@ -6,17 +6,17 @@ def test_user_can_sign_up_log_in_submit_score_and_read_leaderboard(
 ) -> None:
     credentials = {"username": "river", "password": "secret123"}
 
-    signup = client.post("/auth/signup", json=credentials)
+    signup = client.post("/api/auth/signup", json=credentials)
     assert signup.status_code == 200
     assert signup.json()["user"]["username"] == "river"
 
     client.cookies.clear()
-    login = client.post("/auth/login", json=credentials)
+    login = client.post("/api/auth/login", json=credentials)
     assert login.status_code == 200
 
     token = login.json()["token"]
     submitted_score = client.post(
-        "/scores",
+        "/api/scores",
         json={"mode": "walls", "score": 123},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -26,7 +26,7 @@ def test_user_can_sign_up_log_in_submit_score_and_read_leaderboard(
     assert score_entry["username"] == "river"
     assert score_entry["score"] == 123
 
-    leaderboard = client.get("/leaderboard", params={"mode": "walls", "limit": 20})
+    leaderboard = client.get("/api/leaderboard", params={"mode": "walls", "limit": 20})
     assert leaderboard.status_code == 200
 
     entries = leaderboard.json()

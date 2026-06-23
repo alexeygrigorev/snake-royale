@@ -194,7 +194,7 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
 paths:
-  /auth/signup:
+  /api/auth/signup:
     post:
       tags:
         - Auth
@@ -226,7 +226,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /auth/login:
+  /api/auth/login:
     post:
       tags:
         - Auth
@@ -258,7 +258,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /auth/logout:
+  /api/auth/logout:
     post:
       tags:
         - Auth
@@ -271,7 +271,7 @@ paths:
           description: Session ended.
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /auth/me:
+  /api/auth/me:
     get:
       tags:
         - Auth
@@ -289,7 +289,7 @@ paths:
                 $ref: "#/components/schemas/User"
         "204":
           description: No active session; frontend treats this as null.
-  /scores:
+  /api/scores:
     post:
       tags:
         - Scores
@@ -314,7 +314,7 @@ paths:
           $ref: "#/components/responses/ValidationError"
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /leaderboard:
+  /api/leaderboard:
     get:
       tags:
         - Scores
@@ -344,7 +344,7 @@ paths:
                   $ref: "#/components/schemas/ScoreEntry"
         "400":
           $ref: "#/components/responses/ValidationError"
-  /active-games:
+  /api/active-games:
     get:
       tags:
         - Active Games
@@ -379,7 +379,7 @@ paths:
           $ref: "#/components/responses/ValidationError"
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /active-games/{gameId}:
+  /api/active-games/{gameId}:
     get:
       tags:
         - Active Games

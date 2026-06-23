@@ -16,7 +16,7 @@ STATIC_DIR = Path(
 )
 INDEX_HTML = STATIC_DIR / "index.html"
 ASSETS_DIR = STATIC_DIR / "assets"
-API_PREFIXES = ("/active-games", "/auth", "/health", "/leaderboard", "/scores")
+API_PREFIXES = ("/api", "/health")
 
 app = FastAPI(
     title="Snake Royale Backend API",
@@ -57,9 +57,9 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-app.include_router(auth.router)
-app.include_router(scores.router)
-app.include_router(active_games.router)
+app.include_router(auth.router, prefix="/api")
+app.include_router(scores.router, prefix="/api")
+app.include_router(active_games.router, prefix="/api")
 
 if ASSETS_DIR.exists():
     app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")

@@ -3,14 +3,14 @@ from fastapi.testclient import TestClient
 
 def _auth_header(client: TestClient, username: str = "alice") -> dict[str, str]:
     response = client.post(
-        "/auth/login",
+        "/api/auth/login",
         json={"username": username, "password": "password123"},
     )
     return {"Authorization": f"Bearer {response.json()['token']}"}
 
 
 def test_seeded_leaderboard_is_sorted_by_score(client: TestClient):
-    response = client.get("/leaderboard", params={"mode": "walls"})
+    response = client.get("/api/leaderboard", params={"mode": "walls"})
 
     assert response.status_code == 200
     scores = [entry["score"] for entry in response.json()]
@@ -20,7 +20,7 @@ def test_seeded_leaderboard_is_sorted_by_score(client: TestClient):
 
 def test_submit_score_records_current_user(client: TestClient):
     response = client.post(
-        "/scores",
+        "/api/scores",
         json={"mode": "wrap", "score": 99},
         headers=_auth_header(client),
     )
@@ -34,7 +34,7 @@ def test_submit_score_records_current_user(client: TestClient):
 
 def test_invalid_score_returns_spec_error_shape(client: TestClient):
     response = client.post(
-        "/scores",
+        "/api/scores",
         json={"mode": "wrap", "score": -1},
         headers=_auth_header(client),
     )
