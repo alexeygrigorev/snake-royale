@@ -7,39 +7,24 @@ RUN npm ci
 
 COPY frontend ./
 RUN npm run build
-RUN node - <<'EOF'
-const fs = require("fs");
-const path = require("path");
+RUN node --input-type=module - <<'EOF'
+import fs from "node:fs";
+import path from "node:path";
 
-const clientDir = path.join(process.cwd(), "dist", "client");
-const assetsDir = path.join(clientDir, "assets");
-const files = fs.readdirSync(assetsDir);
-const entry = files.find((file) => /^index-.*\.js$/.test(file));
+const server = (await import("./dist/server/server.js")).default;
+const response = await server.fetch(new Request("http://localhost/"), {}, {});
 
-if (!entry) {
-  throw new Error("Could not find built frontend entry in dist/client/assets");
+if (!response.ok) {
+  throw new Error(`Frontend prerender failed with status ${response.status}`);
 }
 
-const styles = files
-  .filter((file) => file.endsWith(".css"))
-  .map((file) => `    <link rel="stylesheet" href="/assets/${file}">`)
-  .join("\n");
+const html = await response.text();
 
-const html = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Snake Royale</title>
-${styles}
-  </head>
-  <body>
-    <script type="module" src="/assets/${entry}"></script>
-  </body>
-</html>
-`;
+if (!html.includes("$_TSR")) {
+  throw new Error("Frontend prerender did not include TanStack hydration data");
+}
 
-fs.writeFileSync(path.join(clientDir, "index.html"), html);
+fs.writeFileSync(path.join(process.cwd(), "dist", "client", "index.html"), html);
 EOF
 
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS backend
