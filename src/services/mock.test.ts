@@ -37,7 +37,7 @@ describe("mock services — scores", () => {
   });
 
   it("returns leaderboards sorted by score per mode", async () => {
-    await svc.signup("a", "pass");
+    await svc.signup("aa", "pass");
     await svc.submitScore("walls", 3);
     await svc.submitScore("walls", 10);
     await svc.submitScore("wrap", 7);
