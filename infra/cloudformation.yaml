@@ -343,9 +343,55 @@ Resources:
       AllocationId: !GetAtt AppElasticIp.AllocationId
       InstanceId: !Ref AppInstance
 
+  AppDistribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: AppElasticIpAssociation
+    Properties:
+      DistributionConfig:
+        Comment: !Sub ${AWS::StackName} Snake Royale HTTPS distribution
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - Id: SnakeRoyaleApp
+            DomainName: !GetAtt AppInstance.PublicDnsName
+            CustomOriginConfig:
+              HTTPPort: 80
+              OriginProtocolPolicy: http-only
+        DefaultCacheBehavior:
+          TargetOriginId: SnakeRoyaleApp
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - DELETE
+            - GET
+            - HEAD
+            - OPTIONS
+            - PATCH
+            - POST
+            - PUT
+          CachedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: true
+          ForwardedValues:
+            QueryString: true
+            Cookies:
+              Forward: all
+            Headers:
+              - "*"
+          MinTTL: 0
+          DefaultTTL: 0
+          MaxTTL: 0
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+
 Outputs:
   AppUrl:
-    Description: Public URL for Snake Royale.
+    Description: Public HTTPS URL for Snake Royale.
+    Value: !Sub https://${AppDistribution.DomainName}
+  AppHttpUrl:
+    Description: Direct HTTP URL for the EC2 instance.
     Value: !Sub http://${AppElasticIp}
   AppInstanceId:
     Description: EC2 instance running the Docker container.

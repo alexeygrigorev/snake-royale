@@ -5,7 +5,8 @@ This template creates:
 - Aurora PostgreSQL Serverless v2
 - a Secrets Manager secret containing the database username and password
 - a single Amazon Linux EC2 instance that clones this repository, builds the Docker image, reads the secret at boot, and runs the app container
-- an Elastic IP output used as the public app URL
+- a CloudFront distribution used as the public HTTPS app URL
+- an Elastic IP output for direct EC2 HTTP access
 
 ## Create the stack
 
@@ -38,6 +39,9 @@ aws cloudformation describe-stacks \
   --query "Stacks[0].Outputs[?OutputKey=='AppUrl'].OutputValue" \
   --output text
 ```
+
+The `AppUrl` output is the HTTPS CloudFront URL. The `AppHttpUrl` output is the
+direct EC2 URL and is useful only for debugging.
 
 ## Update the stack
 
@@ -90,9 +94,10 @@ aws cloudformation wait stack-delete-complete \
   --region us-east-1
 ```
 
-Deleting the stack deletes the EC2 instance, Elastic IP, Aurora cluster, and
-Secrets Manager secret. Export or snapshot any database data you need before
-deleting the stack.
+Deleting the stack deletes the CloudFront distribution, EC2 instance, Elastic
+IP, Aurora cluster, and Secrets Manager secret. Export or snapshot any database
+data you need before deleting the stack. CloudFront distribution deletion can
+take several minutes.
 
 ## Notes
 
