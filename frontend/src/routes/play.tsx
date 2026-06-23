@@ -34,17 +34,26 @@ const KEYS: Record<string, Direction> = {
   d: "right",
 };
 
+function newGameId(): string {
+  const randomUUID = globalThis.crypto?.randomUUID;
+  if (typeof randomUUID === "function") {
+    return randomUUID.call(globalThis.crypto);
+  }
+
+  return `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function PlayPage() {
   const { user } = useAuth();
   const [mode, setMode] = useState<GameMode>("walls");
   const [state, setState] = useState<GameState>(() => createGame("walls"));
   const [running, setRunning] = useState(false);
-  const gameIdRef = useRef<string>(crypto.randomUUID());
+  const gameIdRef = useRef<string>(newGameId());
   const submittedRef = useRef(false);
 
   const reset = useCallback((m: GameMode) => {
     setState(createGame(m));
-    gameIdRef.current = crypto.randomUUID();
+    gameIdRef.current = newGameId();
     submittedRef.current = false;
     setRunning(false);
   }, []);
