@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { AuthProvider, useAuth } from "../hooks/useAuth";
 
 function NotFoundComponent() {
   return (
@@ -118,8 +119,68 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <AuthProvider>
+        <div className="min-h-screen flex flex-col">
+          <Nav />
+          <main className="flex-1">
+            <Outlet />
+          </main>
+        </div>
+      </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+function Nav() {
+  const { user, logout } = useAuth();
+  return (
+    <header className="border-b border-border bg-card">
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+        <Link to="/" className="font-bold tracking-tight">
+          🐍 Snake
+        </Link>
+        <nav className="flex items-center gap-1 text-sm">
+          <Link
+            to="/play"
+            className="rounded-md px-3 py-1.5 hover:bg-accent"
+            activeProps={{ className: "rounded-md px-3 py-1.5 bg-accent font-medium" }}
+          >
+            Play
+          </Link>
+          <Link
+            to="/leaderboard"
+            className="rounded-md px-3 py-1.5 hover:bg-accent"
+            activeProps={{ className: "rounded-md px-3 py-1.5 bg-accent font-medium" }}
+          >
+            Leaderboard
+          </Link>
+          <Link
+            to="/watch"
+            className="rounded-md px-3 py-1.5 hover:bg-accent"
+            activeProps={{ className: "rounded-md px-3 py-1.5 bg-accent font-medium" }}
+          >
+            Watch
+          </Link>
+          {user ? (
+            <div className="ml-2 flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{user.username}</span>
+              <button
+                onClick={() => logout()}
+                className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent"
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/auth"
+              className="ml-2 rounded-md bg-primary px-3 py-1.5 text-primary-foreground hover:bg-primary/90"
+            >
+              Sign in
+            </Link>
+          )}
+        </nav>
+      </div>
+    </header>
   );
 }
