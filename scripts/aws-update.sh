@@ -13,6 +13,7 @@ aws cloudformation deploy \
 	--region "$AWS_REGION" \
 	--template-file infra/cloudformation.yaml \
 	--capabilities CAPABILITY_IAM \
+	--no-fail-on-empty-changeset \
 	--parameter-overrides \
 		AppRepositoryUrl="$APP_REPOSITORY_URL" \
 		AppSourceBranch="$APP_SOURCE_BRANCH" \
