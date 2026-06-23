@@ -9,7 +9,13 @@ This template creates:
 
 ## Create the stack
 
-Deploy from the repository root:
+Deploy from the repository root with the helper script:
+
+```bash
+./scripts/aws-deploy.sh
+```
+
+Or run the equivalent AWS CLI command directly:
 
 ```bash
 aws cloudformation deploy \
@@ -38,7 +44,18 @@ aws cloudformation describe-stacks \
 Commit and push the app changes first. The EC2 instance clones the Git
 repository, so local-only changes are not available to the deployment.
 
-Then re-run the same deploy command:
+Then run the update helper:
+
+```bash
+./scripts/aws-update.sh
+```
+
+The update helper applies CloudFormation changes, then uses AWS Systems Manager
+to run the EC2 instance's `/usr/local/bin/snake-royale-redeploy` command. That
+command pulls the configured branch, rebuilds the Docker image, and restarts the
+container.
+
+Or run the stack update command directly:
 
 ```bash
 aws cloudformation deploy \
@@ -52,14 +69,8 @@ aws cloudformation deploy \
     AuroraEngineVersion=16.6
 ```
 
-CloudFormation updates the stack in place. The generated database secret has no
-rotation schedule, so re-running this command with the same template and
-parameters does not rotate the password.
-
-If you only changed app code and not the template, CloudFormation might report
-`No changes to deploy`. In that case, either replace the EC2 instance manually or
-make a deliberate stack parameter/template change that causes the instance user
-data to run again.
+The generated database secret has no rotation schedule, so re-running these
+commands with the same template and parameters does not rotate the password.
 
 ## Delete the stack
 

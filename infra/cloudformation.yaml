@@ -234,6 +234,8 @@ Resources:
             Principal:
               Service: ec2.amazonaws.com
             Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
       Policies:
         - PolicyName: ReadSnakeRoyaleDatabaseSecret
           PolicyDocument:
@@ -278,26 +280,37 @@ Resources:
             dnf install -y docker git jq awscli
             systemctl enable --now docker
 
+            cat >/usr/local/bin/snake-royale-redeploy <<'SCRIPT'
+            #!/usr/bin/env bash
+            set -euxo pipefail
+
+            APP_SOURCE_BRANCH="$1"
+            APP_REPOSITORY_URL="${AppRepositoryUrl}"
+            AWS_REGION="${AWS::Region}"
+            DATABASE_SECRET_ARN="${DatabaseSecretArn}"
+            DATABASE_ENDPOINT="${DatabaseEndpoint}"
+            DATABASE_NAME="${DatabaseName}"
             APP_DIR=/opt/snake-royale
+
             if [ -d "$APP_DIR/.git" ]; then
               git -C "$APP_DIR" fetch --prune origin
-              git -C "$APP_DIR" checkout "${AppSourceBranch}"
-              git -C "$APP_DIR" pull --ff-only origin "${AppSourceBranch}"
+              git -C "$APP_DIR" checkout "$APP_SOURCE_BRANCH"
+              git -C "$APP_DIR" pull --ff-only origin "$APP_SOURCE_BRANCH"
             else
               rm -rf "$APP_DIR"
-              git clone --branch "${AppSourceBranch}" "${AppRepositoryUrl}" "$APP_DIR"
+              git clone --branch "$APP_SOURCE_BRANCH" "$APP_REPOSITORY_URL" "$APP_DIR"
             fi
 
             SECRET_JSON=$(aws secretsmanager get-secret-value \
-              --region "${AWS::Region}" \
-              --secret-id "${DatabaseSecretArn}" \
+              --region "$AWS_REGION" \
+              --secret-id "$DATABASE_SECRET_ARN" \
               --query SecretString \
               --output text)
             DB_USER=$(echo "$SECRET_JSON" | jq -r .username)
             DB_PASSWORD=$(echo "$SECRET_JSON" | jq -r .password)
             DB_USER_ENCODED=$(jq -rn --arg value "$DB_USER" '$value|@uri')
             DB_PASSWORD_ENCODED=$(jq -rn --arg value "$DB_PASSWORD" '$value|@uri')
-            DATABASE_URL="postgresql://${!DB_USER_ENCODED}:${!DB_PASSWORD_ENCODED}@${DatabaseEndpoint}:5432/${DatabaseName}"
+            DATABASE_URL="postgresql://${!DB_USER_ENCODED}:${!DB_PASSWORD_ENCODED}@$DATABASE_ENDPOINT:5432/$DATABASE_NAME"
 
             docker build -t snake-royale "$APP_DIR"
             docker rm -f snake-royale || true
@@ -308,6 +321,10 @@ Resources:
               --publish 80:8000 \
               --env SNAKE_ROYALE_DATABASE_URL="$DATABASE_URL" \
               snake-royale
+            SCRIPT
+
+            chmod +x /usr/local/bin/snake-royale-redeploy
+            /usr/local/bin/snake-royale-redeploy "${AppSourceBranch}"
           - DatabaseEndpoint: !GetAtt DatabaseCluster.Endpoint.Address
             DatabaseSecretArn: !Ref DatabaseSecret
 
