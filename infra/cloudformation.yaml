@@ -1,0 +1,341 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deploy Snake Royale on one EC2 instance backed by Aurora PostgreSQL Serverless v2.
+
+Parameters:
+  AppRepositoryUrl:
+    Type: String
+    Description: Public Git repository URL that the EC2 instance clones and builds.
+  AppSourceBranch:
+    Type: String
+    Default: main
+    Description: Git branch to deploy.
+  InstanceType:
+    Type: String
+    Default: t3.medium
+    Description: EC2 instance type used to build and run the Docker image.
+  KeyName:
+    Type: String
+    Default: ""
+    Description: Optional existing EC2 key pair name for SSH access.
+  EnableSSH:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Set to true to open SSH ingress from SSHLocation.
+  SSHLocation:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: CIDR block allowed to SSH when EnableSSH is true.
+  DatabaseName:
+    Type: String
+    Default: snakearena
+    AllowedPattern: ^[a-zA-Z][a-zA-Z0-9_]{0,62}$
+    Description: Initial Aurora PostgreSQL database name.
+  DatabaseUsername:
+    Type: String
+    Default: snakearena
+    AllowedPattern: ^[a-zA-Z][a-zA-Z0-9_]{0,62}$
+    Description: Aurora PostgreSQL master username stored in Secrets Manager.
+  AuroraEngineVersion:
+    Type: String
+    Default: "16.6"
+    Description: Aurora PostgreSQL engine version compatible with Serverless v2 in the target region.
+  AuroraMinCapacity:
+    Type: Number
+    Default: 0.5
+    MinValue: 0.5
+    MaxValue: 128
+    Description: Minimum Aurora Serverless v2 capacity in ACUs.
+  AuroraMaxCapacity:
+    Type: Number
+    Default: 2
+    MinValue: 0.5
+    MaxValue: 128
+    Description: Maximum Aurora Serverless v2 capacity in ACUs.
+
+Conditions:
+  HasKeyName: !Not [!Equals [!Ref KeyName, ""]]
+  OpenSSH: !Equals [!Ref EnableSSH, "true"]
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.42.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-vpc
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-igw
+
+  VpcGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref Vpc
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: 10.42.0.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-public-a
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: 10.42.1.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-public-b
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-public
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VpcGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetA
+
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetB
+
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow public HTTP traffic to Snake Royale.
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-app-sg
+
+  AppSSHIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: OpenSSH
+    Properties:
+      GroupId: !Ref AppSecurityGroup
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref SSHLocation
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow PostgreSQL only from the app instance.
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref AppSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-db-sg
+
+  DatabaseSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Snake Royale Aurora PostgreSQL credentials.
+      GenerateSecretString:
+        SecretStringTemplate: !Sub '{"username":"${DatabaseUsername}"}'
+        GenerateStringKey: password
+        PasswordLength: 32
+        ExcludeCharacters: "\"@/\\ "
+
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnets for Snake Royale Aurora PostgreSQL.
+      SubnetIds:
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetB
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-db-subnets
+
+  DatabaseCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      DatabaseName: !Ref DatabaseName
+      Engine: aurora-postgresql
+      EngineVersion: !Ref AuroraEngineVersion
+      MasterUsername: !Sub "{{resolve:secretsmanager:${DatabaseSecret}:SecretString:username}}"
+      MasterUserPassword: !Sub "{{resolve:secretsmanager:${DatabaseSecret}:SecretString:password}}"
+      Port: 5432
+      ServerlessV2ScalingConfiguration:
+        MinCapacity: !Ref AuroraMinCapacity
+        MaxCapacity: !Ref AuroraMaxCapacity
+      StorageEncrypted: true
+      VpcSecurityGroupIds:
+        - !Ref DatabaseSecurityGroup
+
+  DatabaseInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBClusterIdentifier: !Ref DatabaseCluster
+      DBInstanceClass: db.serverless
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      Engine: aurora-postgresql
+      PubliclyAccessible: false
+
+  AppInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ReadSnakeRoyaleDatabaseSecret
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref DatabaseSecret
+
+  AppInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref AppInstanceRole
+
+  AppInstance:
+    Type: AWS::EC2::Instance
+    DependsOn:
+      - DatabaseInstance
+      - PublicRoute
+    Properties:
+      ImageId: "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+      IamInstanceProfile: !Ref AppInstanceProfile
+      InstanceType: !Ref InstanceType
+      KeyName: !If [HasKeyName, !Ref KeyName, !Ref AWS::NoValue]
+      SecurityGroupIds:
+        - !Ref AppSecurityGroup
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-app
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            set -euxo pipefail
+
+            exec > >(tee /var/log/snake-royale-user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
+
+            dnf update -y
+            dnf install -y docker git jq awscli
+            systemctl enable --now docker
+
+            APP_DIR=/opt/snake-royale
+            if [ -d "$APP_DIR/.git" ]; then
+              git -C "$APP_DIR" fetch --prune origin
+              git -C "$APP_DIR" checkout "${AppSourceBranch}"
+              git -C "$APP_DIR" pull --ff-only origin "${AppSourceBranch}"
+            else
+              rm -rf "$APP_DIR"
+              git clone --branch "${AppSourceBranch}" "${AppRepositoryUrl}" "$APP_DIR"
+            fi
+
+            SECRET_JSON=$(aws secretsmanager get-secret-value \
+              --region "${AWS::Region}" \
+              --secret-id "${DatabaseSecretArn}" \
+              --query SecretString \
+              --output text)
+            DB_USER=$(echo "$SECRET_JSON" | jq -r .username)
+            DB_PASSWORD=$(echo "$SECRET_JSON" | jq -r .password)
+            DB_USER_ENCODED=$(jq -rn --arg value "$DB_USER" '$value|@uri')
+            DB_PASSWORD_ENCODED=$(jq -rn --arg value "$DB_PASSWORD" '$value|@uri')
+            DATABASE_URL="postgresql://${!DB_USER_ENCODED}:${!DB_PASSWORD_ENCODED}@${DatabaseEndpoint}:5432/${DatabaseName}"
+
+            docker build -t snake-royale "$APP_DIR"
+            docker rm -f snake-royale || true
+            docker run \
+              --detach \
+              --name snake-royale \
+              --restart unless-stopped \
+              --publish 80:8000 \
+              --env SNAKE_ROYALE_DATABASE_URL="$DATABASE_URL" \
+              snake-royale
+          - DatabaseEndpoint: !GetAtt DatabaseCluster.Endpoint.Address
+            DatabaseSecretArn: !Ref DatabaseSecret
+
+  AppElasticIp:
+    Type: AWS::EC2::EIP
+    DependsOn: VpcGatewayAttachment
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-app-eip
+
+  AppElasticIpAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt AppElasticIp.AllocationId
+      InstanceId: !Ref AppInstance
+
+Outputs:
+  AppUrl:
+    Description: Public URL for Snake Royale.
+    Value: !Sub http://${AppElasticIp}
+  AppInstanceId:
+    Description: EC2 instance running the Docker container.
+    Value: !Ref AppInstance
+  DatabaseEndpoint:
+    Description: Aurora PostgreSQL cluster endpoint.
+    Value: !GetAtt DatabaseCluster.Endpoint.Address
+  DatabaseSecretArn:
+    Description: Secrets Manager secret containing the database username and password.
+    Value: !Ref DatabaseSecret
